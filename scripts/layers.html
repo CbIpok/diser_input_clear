@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>3D слои с паттерн‑заполнением на Three.js</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      // Импортируем Three.js и OrbitControls с абсолютных URL
+      import * as THREE from 'https://threejs.org/build/three.module.js';
+      import { OrbitControls } from 'https://threejs.org/examples/jsm/controls/OrbitControls.js';
+
+      // Список слоев (basis)
+      const basises = [
+        "basis_6",
+        "basis_8",
+        "basis_9",
+        "basis_10",
+        "basis_12",
+        "basis_15",
+        "basis_16",
+        "basis_18",
+        "basis_20",
+        "basis_24",
+        "basis_25",
+        "basis_30",
+        "basis_36",
+        "basis_40",
+      ];
+
+      // Размер 2D-данных (для демонстрации)
+      const nrows = 100;
+      const ncols = 100;
+
+      // Пороговые значения для разбиения данных.
+      const regionThresholds = [0.25, 0.5];
+
+      // Цвета для регионов – число цветов = len(regionThresholds)+1.
+      const regionColors = ['green', 'orange', 'red'];
+
+      // Создаем сцену, камеру и рендерер.
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+      camera.position.set(150, 150, 150);
+      camera.lookAt(scene.position);
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      // Создаем OrbitControls
+      const controls = new OrbitControls(camera, renderer.domElement);
+
+      // Освещение
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(100, 100, 100);
+      scene.add(dirLight);
+
+      // Функция генерации случайных данных (2D массив)
+      function generateRandomData(rows, cols) {
+        const data = [];
+        for (let i = 0; i < rows; i++) {
+          const row = [];
+          for (let j = 0; j < cols; j++) {
+            row.push(Math.random());
+          }
+          data.push(row);
+        }
+        return data;
+      }
+
+      // Функция вычисления региональной карты по заданным порогам
+      function computeRegionMap(data, thresholds) {
+        const rows = data.length;
+        const cols = data[0].length;
+        const regionMap = [];
+        for (let i = 0; i < rows; i++) {
+          const row = [];
+          for (let j = 0; j < cols; j++) {
+            const val = data[i][j];
+            let region = 0;
+            for (const thr of thresholds) {
+              if (val >= thr) region++;
+            }
+            row.push(region);
+          }
+          regionMap.push(row);
+        }
+        return regionMap;
+      }
+
+      // Функция для создания текстуры с хэтчинг‑заполнением
+      function createHatchedTexture(regionMap, regionColors, dashSpacing = 4) {
+        const rows = regionMap.length;
+        const cols = regionMap[0].length;
+        const canvas = document.createElement('canvas');
+        canvas.width = cols;
+        canvas.height = rows;
+        const ctx = canvas.getContext('2d');
+
+        // Заливаем фон белым
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, cols, rows);
+
+        // Рисуем паттерн: если координата кратна dashSpacing, рисуем пиксель нужного цвета
+        for (let i = 0; i < rows; i++) {
+          for (let j = 0; j < cols; j++) {
+            if (i % dashSpacing === 0 || j % dashSpacing === 0) {
+              const region = regionMap[i][j];
+              ctx.fillStyle = regionColors[region];
+              ctx.fillRect(j, i, 1, 1);
+            }
+          }
+        }
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.needsUpdate = true;
+        return texture;
+      }
+
+      // Создаем плоскости для каждого слоя
+      basises.forEach(basis => {
+        const z_val = parseInt(basis.split('_')[1]);
+        const data = generateRandomData(nrows, ncols);
+        const regionMap = computeRegionMap(data, regionThresholds);
+        const texture = createHatchedTexture(regionMap, regionColors, 4);
+
+        // Создаем плоскость с размерами, соответствующими данным
+        const geometry = new THREE.PlaneGeometry(ncols, nrows);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          side: THREE.DoubleSide
+        });
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.set(ncols / 2, nrows / 2, z_val);
+        scene.add(plane);
+      });
+
+      // Анимация
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Обработка изменения размеров окна
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

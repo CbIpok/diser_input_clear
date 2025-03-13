@@ -5,6 +5,23 @@ import numpy as np
 from tqdm import tqdm  # Импорт tqdm для отображения прогресса
 
 
+def average_reconstructions(reconstruction_list, basis_name):
+    """
+    Вычисляет среднее арифметическое реконструкций.
+
+    Параметры:
+      reconstruction_list: список numpy-массивов реконструкций.
+      basis_name: имя базисной функции (пока не используется).
+
+    Возвращает:
+      Среднюю реконструкцию как numpy-массив.
+    """
+    mean_reconstruction = np.zeros_like(reconstruction_list[0])
+    for rec in reconstruction_list:
+        mean_reconstruction += rec
+    mean_reconstruction /= len(reconstruction_list)
+    return mean_reconstruction
+
 def load_json_data(filename):
     """
     Загружает данные из JSON-файла и преобразует их в два массива:
@@ -119,7 +136,7 @@ class TotalAccuracyMean:
         wave = data[self.sub_y_min:self.sub_y_max, self.sub_x_min:self.sub_x_max]
         return wave
 
-    def get_accuracy(self, chunk_size=10):
+    def get_accuracy(self, chunk_size=20):
         """
         Вычисляет нормированные показатели аппроксимации для каждой точки.
         Реконструкция для каждого чанка вычисляется как среднее арифметическое реконструкций,
@@ -139,18 +156,16 @@ class TotalAccuracyMean:
         # Обработка строк коэффициентной сетки чанками
         for i in tqdm(range(0, rows, chunk_size), desc="Вычисление точности"):
             end = min(i + chunk_size, rows)
-            # Вычисляем реконструкции для каждого basis_name
             reconstruction_list = []
+            # Для каждого basis_name вычисляем реконструкцию
             for bn in self.basis_names:
                 basis_stack = self.basis[bn]  # shape (n_layers, H, W)
                 coefs_chunk = self.coefs[bn][i:end, :, :]  # shape (chunk, cols, n_layers)
                 reconstruction_bn = np.tensordot(coefs_chunk, basis_stack, axes=([2], [0]))
                 reconstruction_list.append(reconstruction_bn)
-            # Итеративно вычисляем среднее арифметическое реконструкций без дополнительного стека
-            reconstruction_chunk = np.zeros_like(reconstruction_list[0])
-            for rec in reconstruction_list:
-                reconstruction_chunk += rec
-            reconstruction_chunk /= len(reconstruction_list)
+            # Вызываем отдельную функцию для усреднения реконструкций,
+            # передавая в неё также имя базисной функции (пока не используется)
+            reconstruction_chunk = average_reconstructions(reconstruction_list, bn)
 
             # Вычисляем разницу между волной и реконструкцией
             diff_chunk = self.wave - reconstruction_chunk  # broadcasting: (chunk, cols, H, W)
