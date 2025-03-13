@@ -1,5 +1,7 @@
 import os
 import json
+import re
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -13,7 +15,7 @@ class BasisGenerator:
             "size": [height, width]
             "subduction_zone": [y_min, y_max, x_min, x_max]
         """
-        config_path = os.path.join("config", "zones.json")
+        config_path = os.path.join("..","config", "zones.json")
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
         self.size = config["size"]
@@ -143,11 +145,12 @@ class BasisGenerator:
         plt.show()
 
 
+
 # Пример для самостоятельного тестирования:
 if __name__ == "__main__":
     generator = BasisGenerator()
     # Убедитесь, что размеры subduction_zone делятся на выбранные tile_height и tile_width.
-    generator.generate_tiles(tile_height=30, tile_width=30)
+    generator.generate_tiles(tile_height=40, tile_width=80)
     # Визуализируем разбиение плиток
     generator.visualize_tiles()
     # Отображаем интерактивное переключение базисных функций

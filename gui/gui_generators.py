@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+import sys
 import os
+from PyQt5.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QGroupBox,
+    QLabel, QComboBox, QLineEdit, QTextEdit, QPushButton, QFileDialog, QCheckBox, QFormLayout
+)
+from PyQt5.QtCore import Qt
 
 # Определение параметров для каждого генератора
 generator_params = {
@@ -49,170 +53,182 @@ generator_params = {
 }
 
 
-class GUIApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Генератор BAT-файла для запуска генераторов")
-        self.param_vars = {}  # Хранит переменные для всех параметров текущего генератора
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Генератор BAT-файла для запуска генераторов")
+        self.resize(800, 600)
 
-        # Основное окно разделено на 2 части: слева – настройки, справа – итоговый текст
-        self.main_frame = ttk.Frame(self.root, padding="5")
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        # Словари для хранения виджетов параметров и их значений (для сохранения при обновлении формы)
+        self.paramWidgets = {}
+        self.paramValues = {}
 
-        self.left_frame = ttk.Frame(self.main_frame)
-        self.left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        central = QWidget(self)
+        self.setCentralWidget(central)
 
-        self.right_frame = ttk.Frame(self.main_frame)
-        self.right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        mainLayout = QHBoxLayout(central)
 
-        # Левая панель: выбор генератора
-        ttk.Label(self.left_frame, text="Выберите генератор:").pack(anchor=tk.W)
-        self.generator_choice = ttk.Combobox(self.left_frame, values=list(generator_params.keys()), state="readonly")
-        self.generator_choice.pack(fill=tk.X, pady=5)
-        self.generator_choice.bind("<<ComboboxSelected>>", self.on_generator_change)
-        self.generator_choice.current(0)
+        # Левая панель
+        leftWidget = QWidget()
+        leftLayout = QVBoxLayout(leftWidget)
 
-        # Рамка для параметров выбранного генератора (разделена на две части)
-        self.params_frame = ttk.LabelFrame(self.left_frame, text="Параметры")
-        self.params_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-        self.control_frame = ttk.Frame(self.params_frame)
-        self.control_frame.pack(fill=tk.X, pady=2)
-        self.dependent_frame = ttk.Frame(self.params_frame)
-        self.dependent_frame.pack(fill=tk.X, pady=2)
+        # Выбор генератора
+        leftLayout.addWidget(QLabel("Выберите генератор:"))
+        self.genCombo = QComboBox()
+        self.genCombo.addItems(list(generator_params.keys()))
+        self.genCombo.currentIndexChanged.connect(self.updateParameterLayout)
+        leftLayout.addWidget(self.genCombo)
 
-        # Кнопка для добавления команды в итоговый BAT-файл
-        self.add_button = ttk.Button(self.left_frame, text="Добавить текст запуска", command=self.add_command)
-        self.add_button.pack(pady=5, fill=tk.X)
+        # Группа параметров
+        self.paramGroup = QGroupBox("Параметры")
+        self.paramFormLayout = QFormLayout()
+        self.paramGroup.setLayout(self.paramFormLayout)
+        leftLayout.addWidget(self.paramGroup)
 
-        # Правая панель: текстовое поле для итогового BAT-файла
-        ttk.Label(self.right_frame, text="Суммарный BAT-файл:").pack(anchor=tk.W)
-        self.text_area = tk.Text(self.right_frame, wrap=tk.WORD)
-        self.text_area.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        self.scroll_y = ttk.Scrollbar(self.right_frame, orient=tk.VERTICAL, command=self.text_area.yview)
-        self.text_area.configure(yscrollcommand=self.scroll_y.set)
-        self.scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+        # Кнопка для добавления команды
+        self.addButton = QPushButton("Добавить текст запуска")
+        self.addButton.clicked.connect(self.addCommand)
+        leftLayout.addWidget(self.addButton)
 
-        self.save_button = ttk.Button(self.right_frame, text="Сохранить в файл", command=self.save_to_file)
-        self.save_button.pack(pady=5)
+        leftLayout.addStretch()
+        mainLayout.addWidget(leftWidget, 1)
 
-        # Инициализация полей параметров для выбранного генератора
-        self.current_generator = None
-        self.update_params_frame(initial=True)
+        # Правая панель
+        rightWidget = QWidget()
+        rightLayout = QVBoxLayout(rightWidget)
+        self.textEdit = QTextEdit()
+        self.textEdit.setAcceptRichText(False)
+        # QTextEdit по умолчанию поддерживает стандартные сочетания клавиш (Ctrl+C/V/X)
+        rightLayout.addWidget(self.textEdit)
+        self.saveButton = QPushButton("Сохранить в файл")
+        self.saveButton.clicked.connect(self.saveToFile)
+        rightLayout.addWidget(self.saveButton)
+        mainLayout.addWidget(rightWidget, 2)
 
-    def on_generator_change(self, event=None):
-        # При смене генератора полностью пересоздаем все параметры
-        self.update_params_frame(initial=True)
+        self.updateParameterLayout()  # инициализируем параметры
 
-    def update_params_frame(self, initial=False):
-        gen_type = self.generator_choice.get()
-        params_list = generator_params[gen_type]["params"]
+    def clearParameterLayout(self):
+        # Сохраняем текущие значения (если есть) перед очисткой
+        for flag, widget in self.paramWidgets.items():
+            if isinstance(widget, QComboBox):
+                self.paramValues[flag] = widget.currentText()
+            elif isinstance(widget, QLineEdit):
+                self.paramValues[flag] = widget.text()
+            elif isinstance(widget, QCheckBox):
+                self.paramValues[flag] = widget.isChecked()
+        # Удаляем все элементы из формы
+        while self.paramFormLayout.count():
+            item = self.paramFormLayout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.paramWidgets.clear()
 
-        if self.current_generator != gen_type or initial:
-            # Если генератор изменился, очищаем обе области и пересоздаем контролирующие параметры
-            for widget in self.control_frame.winfo_children():
-                widget.destroy()
-            for widget in self.dependent_frame.winfo_children():
-                widget.destroy()
-            self.param_vars = {}
-            for param in params_list:
-                if "depends_on" not in param:
-                    self.create_param_widget(param, parent=self.control_frame)
-            self.current_generator = gen_type
-        else:
-            # Если генератор не изменился, просто обновляем зависимые параметры
-            for widget in self.dependent_frame.winfo_children():
-                widget.destroy()
+    def updateParameterLayout(self):
+        self.clearParameterLayout()
+        currentGen = self.genCombo.currentText()
+        params = generator_params[currentGen]["params"]
 
-        # Создаем зависимые параметры, если условие выполнено
-        for param in params_list:
+        for param in params:
+            # Если параметр зависит от другой, проверяем условие
             if "depends_on" in param:
-                dep = param["depends_on"]
-                ctrl_flag = dep["flag"]
-                required_value = str(dep["value"])
-                if ctrl_flag in self.param_vars and str(self.param_vars[ctrl_flag].get()) == required_value:
-                    self.create_param_widget(param, parent=self.dependent_frame)
+                ctrlFlag = param["depends_on"]["flag"]
+                reqValue = str(param["depends_on"]["value"])
+                # Если в сохранённых значениях есть controlling параметр, сравниваем; иначе используем дефолт
+                ctrlVal = self.paramValues.get(ctrlFlag, str(param.get("default", "")))
+                if str(ctrlVal) != reqValue:
+                    continue
 
-    def create_param_widget(self, param, parent):
-        """Создает виджет для параметра и сохраняет переменную в self.param_vars."""
-        frame = ttk.Frame(parent)
-        frame.pack(fill=tk.X, pady=2)
-        label = ttk.Label(frame, text=param["label"] + ":")
-        label.pack(side=tk.LEFT)
-
-        flag = param["flag"]
-        p_type = param["type"]
-        default = param.get("default", "")
-
-        if p_type == "choice":
-            var = tk.StringVar(value=str(default))
-            combo = ttk.Combobox(frame, textvariable=var, values=param["choices"], state="readonly", width=15)
-            combo.pack(side=tk.RIGHT, fill=tk.X, expand=True)
-            # При изменении значения обновляем только зависимые параметры
-            var.trace_add("write", lambda *args: self.update_params_frame())
-        elif p_type in ["int", "float", "str"]:
-            var = tk.StringVar(value=str(default))
-            entry = ttk.Entry(frame, textvariable=var)
-            entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
-        elif p_type == "bool":
-            var = tk.BooleanVar(value=default)
-            chk = ttk.Checkbutton(frame, variable=var)
-            chk.pack(side=tk.RIGHT)
-        else:
-            var = tk.StringVar(value=str(default))
-            entry = ttk.Entry(frame, textvariable=var)
-            entry.pack(side=tk.RIGHT, fill=tk.X, expand=True)
-
-        self.param_vars[flag] = var
-
-    def add_command(self):
-        """Генерирует командную строку на основе выбранного генератора и введённых параметров,
-        затем добавляет её в итоговое текстовое поле."""
-        gen_type = self.generator_choice.get()
-        script = generator_params[gen_type]["script"]
-        # Префикс для установки PYTHONPATH (чтобы корень проекта был в sys.path)
-        cmd_parts = [f"set PYTHONPATH=%CD% && python scripts/{script}"]
-
-        for param in generator_params[gen_type]["params"]:
             flag = param["flag"]
-            # Для зависимых параметров проверяем условие
+            label = param["label"]
+            pType = param["type"]
+            default = self.paramValues.get(flag, str(param.get("default", "")))
+
+            if pType == "choice":
+                widget = QComboBox()
+                widget.addItems(param["choices"])
+                index = widget.findText(default)
+                if index >= 0:
+                    widget.setCurrentIndex(index)
+                else:
+                    widget.setCurrentIndex(0)
+                # При изменении управляющего параметра обновляем всю форму
+                widget.currentIndexChanged.connect(self.updateParameterLayout)
+            elif pType in ["int", "float", "str"]:
+                widget = QLineEdit()
+                widget.setText(default)
+            elif pType == "bool":
+                widget = QCheckBox()
+                widget.setChecked(True if default in [True, "True", "true"] else False)
+            else:
+                widget = QLineEdit()
+                widget.setText(default)
+            self.paramWidgets[flag] = widget
+            self.paramFormLayout.addRow(label + ":", widget)
+
+    def addCommand(self):
+        currentGen = self.genCombo.currentText()
+        script = generator_params[currentGen]["script"]
+        # Добавляем префикс для установки PYTHONPATH
+        cmdParts = [f"set PYTHONPATH=%CD% && python scripts/{script}"]
+
+        params = generator_params[currentGen]["params"]
+        for param in params:
+            flag = param["flag"]
+            # Проверка зависимых параметров
             if "depends_on" in param:
-                dep = param["depends_on"]
-                ctrl_flag = dep["flag"]
-                required_value = str(dep["value"])
-                if ctrl_flag in self.param_vars and str(self.param_vars[ctrl_flag].get()) != required_value:
-                    continue
-                elif ctrl_flag not in self.param_vars:
+                ctrlFlag = param["depends_on"]["flag"]
+                reqValue = str(param["depends_on"]["value"])
+                ctrlWidget = self.paramWidgets.get(ctrlFlag)
+                if ctrlWidget:
+                    if isinstance(ctrlWidget, QComboBox):
+                        if ctrlWidget.currentText() != reqValue:
+                            continue
+                    elif isinstance(ctrlWidget, QLineEdit):
+                        if ctrlWidget.text() != reqValue:
+                            continue
+                    elif isinstance(ctrlWidget, QCheckBox):
+                        if str(ctrlWidget.isChecked()) != reqValue:
+                            continue
+                else:
                     continue
 
-            if flag in self.param_vars:
-                value = self.param_vars[flag].get()
+            widget = self.paramWidgets.get(flag)
+            if widget is None:
+                continue
+            if isinstance(widget, QComboBox):
+                value = widget.currentText()
+            elif isinstance(widget, QLineEdit):
+                value = widget.text()
+            elif isinstance(widget, QCheckBox):
+                value = widget.isChecked()
             else:
-                value = str(param.get("default", ""))
+                value = ""
             if param["type"] == "bool":
-                if self.param_vars[flag].get():
-                    cmd_parts.append(flag)
+                if value:
+                    cmdParts.append(flag)
             else:
                 if value != "":
-                    cmd_parts.append(f"{flag} {value}")
-        cmd_line = " ".join(cmd_parts)
-        self.text_area.insert(tk.END, cmd_line + "\n")
-        self.text_area.see(tk.END)
+                    cmdParts.append(f"{flag} {value}")
+        cmdLine = " ".join(cmdParts)
+        self.textEdit.append(cmdLine)
 
-    def save_to_file(self):
-        """Сохраняет содержимое итогового текстового поля в выбранный файл."""
-        file_path = filedialog.asksaveasfilename(defaultextension=".bat",
-                                                 filetypes=[("BAT файлы", "*.bat"), ("Все файлы", "*.*")],
-                                                 title="Сохранить BAT файл")
-        if file_path:
+    def saveToFile(self):
+        filename, _ = QFileDialog.getSaveFileName(self, "Сохранить BAT файл", "", "BAT Files (*.bat);;All Files (*)")
+        if filename:
             try:
-                with open(file_path, "w", encoding="utf-8") as f:
-                    f.write(self.text_area.get("1.0", tk.END))
-                messagebox.showinfo("Сохранено", f"Файл успешно сохранён:\n{file_path}")
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(self.textEdit.toPlainText())
             except Exception as e:
-                messagebox.showerror("Ошибка", f"Не удалось сохранить файл:\n{e}")
+                print("Ошибка сохранения:", e)
+
+
+def main():
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = GUIApp(root)
-    root.mainloop()
+    main()

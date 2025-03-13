@@ -2,12 +2,12 @@
 import argparse
 import os
 import numpy as np
+
+from scripts.utils import save_array
 from src.subduction_gen import SubductionGenerator
 
 
-def save_array(data, path):
-    """Сохраняет 2D массив в текстовый файл (значения разделены пробелами, строки – переносами)."""
-    np.savetxt(path, data, fmt='%.6f')
+
 
 
 if __name__ == '__main__':

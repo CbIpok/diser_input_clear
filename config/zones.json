@@ -1,5 +1,5 @@
 {
-    "size": [1024, 1024],
-    "subduction_zone": [64, 124, 452, 572],
-    "mariogramm_zone": [224, 924, 12, 1012]
+    "size": [2048, 2048],
+    "subduction_zone": [128, 248, 904, 1144],
+    "mariogramm_zone": [448, 1848, 24, 2024]
 }
