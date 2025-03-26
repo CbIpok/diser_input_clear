@@ -19,48 +19,60 @@ class SubductionGenerator:
         self.height, self.width = config["size"]
         self.sub_y_min, self.sub_y_max, self.sub_x_min, self.sub_x_max = config["subduction_zone"]
 
-    def gaussian(self, amplitude=1.0, sigma=50.0):
+    def gaussian(self, amplitude=1.0, sigma_x=50.0, sigma_y=50.0):
         """
         Генерирует 2D массив размера size, где за пределами subduction_zone значения равны 0,
         а внутри subduction_zone расположена гауссова функция с центром в центре этой области.
+        Используются отдельные параметры sigma_x и sigma_y для осей x и y.
+
+        Формула:
+          f(x,y) = amplitude * exp(-(((x - cx)^2/(2*sigma_x^2)) + ((y - cy)^2/(2*sigma_y^2))))
 
         Параметры:
           amplitude - максимальное значение гаусса;
-          sigma - параметр стандартного отклонения.
+          sigma_x - параметр стандартного отклонения по оси x;
+          sigma_y - параметр стандартного отклонения по оси y.
         """
         result = np.zeros((self.height, self.width), dtype=float)
 
-        # Определяем диапазоны индексов для subduction_zone
+        # Диапазоны индексов для subduction_zone
         y_indices = np.arange(self.sub_y_min, self.sub_y_max)
         x_indices = np.arange(self.sub_x_min, self.sub_x_max)
         if y_indices.size == 0 or x_indices.size == 0:
             return result
 
-        # Создаем сетку для subduction_zone
+        # Создаем сетку
         X, Y = np.meshgrid(x_indices, y_indices)
         center_x = (self.sub_x_min + self.sub_x_max) / 2.0
         center_y = (self.sub_y_min + self.sub_y_max) / 2.0
 
-        # Вычисляем гауссову функцию
-        gauss = amplitude * np.exp(-(((X - center_x) ** 2 + (Y - center_y) ** 2) / (2 * sigma ** 2)))
+        gauss = amplitude * np.exp(-(((X - center_x) ** 2 / (2 * sigma_x ** 2)) +
+                                     ((Y - center_y) ** 2 / (2 * sigma_y ** 2))))
         result[self.sub_y_min:self.sub_y_max, self.sub_x_min:self.sub_x_max] = gauss
         return result
 
-    def double_gaussian(self, sigma=50.0, amplitude1=1.0, amplitude2=1.0):
+    def double_gaussian(self, sigma_x=50.0, sigma_y=50.0, amplitude1=1.0, amplitude2=1.0):
         """
         Генерирует 2D массив размера size, где за пределами subduction_zone значения равны 0.
-        Внутри subduction_zone функция задается двумя гауссовыми распределениями,
-        разделенными вертикально (по оси y): верхняя половина получает гаусс с амплитудой amplitude1,
-        а нижняя – с амплитудой amplitude2.
+        Внутри subduction_zone вычисляются две гауссовы функции по всему региону:
+          - Первая с амплитудой amplitude1;
+          - Вторая с амплитудой amplitude2.
+        Центры гауссов по оси x совпадают (находятся в центре субдукционной зоны),
+        а по оси y они сдвинуты относительно центральной линии субдукционной зоны на L/8,
+        где L – высота субдукционной зоны. Таким образом, расстояние между центрами равно L/4.
+
+        Формула:
+          f(x,y) = amplitude1 * exp(-(((x - cx)^2/(2*sigma_x^2)) + ((y - (cy - L/8))^2/(2*sigma_y^2))))
+                   + amplitude2 * exp(-(((x - cx)^2/(2*sigma_x^2)) + ((y - (cy + L/8))^2/(2*sigma_y^2))))
 
         Параметры:
-          sigma - параметр стандартного отклонения для обеих гауссовых функций;
-          amplitude1 - амплитуда для верхней половины subduction_zone;
-          amplitude2 - амплитуда для нижней половины subduction_zone.
+          sigma_x - параметр стандартного отклонения по оси x для обеих гауссовых функций;
+          sigma_y - параметр стандартного отклонения по оси y для обеих гауссовых функций;
+          amplitude1 - амплитуда для верхнего гауссова распределения;
+          amplitude2 - амплитуда для нижнего гауссова распределения.
         """
         result = np.zeros((self.height, self.width), dtype=float)
 
-        # Границы subduction_zone
         y_min = self.sub_y_min
         y_max = self.sub_y_max
         x_min = self.sub_x_min
@@ -69,30 +81,33 @@ class SubductionGenerator:
         if y_max <= y_min or x_max <= x_min:
             return result
 
-        # Вычисляем разделение области по вертикали (по y)
-        mid = (y_min + y_max) // 2
-
-        cols = np.arange(x_min, x_max)
+        # Создаем сетку для области subduction_zone
+        y_indices = np.arange(y_min, y_max)
+        x_indices = np.arange(x_min, x_max)
+        X, Y = np.meshgrid(x_indices, y_indices)
         center_x = (x_min + x_max) / 2.0
 
-        # Верхняя половина
-        top_rows = np.arange(y_min, mid)
-        if top_rows.size > 0 and cols.size > 0:
-            X_top, Y_top = np.meshgrid(cols, top_rows)
-            center_y_top = (y_min + mid) / 2.0
-            top_gauss = amplitude1 * np.exp(
-                -(((X_top - center_x) ** 2 + (Y_top - center_y_top) ** 2) / (2 * sigma ** 2)))
-            result[y_min:mid, x_min:x_max] = top_gauss
+        # Высота субдукционной зоны
+        L = y_max - y_min
+        cy = (y_min + y_max) / 2.0
 
-        # Нижняя половина
-        bottom_rows = np.arange(mid, y_max)
-        if bottom_rows.size > 0 and cols.size > 0:
-            X_bottom, Y_bottom = np.meshgrid(cols, bottom_rows)
-            center_y_bottom = (mid + y_max) / 2.0
-            bottom_gauss = amplitude2 * np.exp(
-                -(((X_bottom - center_x) ** 2 + (Y_bottom - center_y_bottom) ** 2) / (2 * sigma ** 2)))
-            result[mid:y_max, x_min:x_max] = bottom_gauss
+        # Сдвигаем центры гауссов по оси y: верхний на L/8 вверх, нижний на L/8 вниз от центра
+        center_y_top = cy + L / 3.0
+        center_y_bottom = cy - L / 3.0
 
+        top_gauss = amplitude1 * np.exp(-(((X - center_x) ** 2 / (2 * sigma_x ** 2)) +
+                                          ((Y - center_y_top) ** 2 / (2 * sigma_y ** 2))))
+        bottom_gauss = amplitude2 * np.exp(-(((X - center_x) ** 2 / (2 * sigma_x ** 2)) +
+                                             ((Y - center_y_bottom) ** 2 / (2 * sigma_y ** 2))))
+        double_gauss = top_gauss + bottom_gauss
+        result[y_min:y_max, x_min:x_max] = double_gauss
+
+        # Вывод формулы поверхности внутри функции
+        print("Формула поверхности f(x,y) для double_gaussian:")
+        print(
+            "f(x,y) = {} * exp(-(((x - {:.2f})^2/(2*{:.2f}^2)) + ((y - ({:.2f}))^2/(2*{:.2f}^2))) ) + {} * exp(-(((x - {:.2f})^2/(2*{:.2f}^2)) + ((y - ({:.2f}))^2/(2*{:.2f}^2))) )".format(
+                amplitude1, center_x, sigma_x, center_y_top, sigma_y,
+                amplitude2, center_x, sigma_x, center_y_bottom, sigma_y))
         return result
 
 
@@ -100,8 +115,9 @@ class SubductionGenerator:
 if __name__ == "__main__":
     generator = SubductionGenerator()
 
-    gauss_data = generator.gaussian(amplitude=1.0, sigma=50.0)
-    double_gauss_data = generator.double_gaussian(sigma=50.0, amplitude1=1.0, amplitude2=2.5)
+    gauss_data = generator.gaussian(amplitude=1.0, sigma_x=50.0, sigma_y=50.0)
+    double_gauss_data = generator.double_gaussian(sigma_x=50.0, sigma_y=50.0,
+                                                  amplitude1=1.0, amplitude2=2.5)
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 

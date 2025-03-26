@@ -23,6 +23,7 @@ basises = [
     "basis_30",
     "basis_36",
     "basis_40",
+    "basis_48",
 ]
 
 # ============================
@@ -30,7 +31,7 @@ basises = [
 # Изменив список ниже, можно задать сколько порогов (и, соответственно, контуров) нужно отобразить.
 # Например, region_thresholds = [0.25, 0.5, 1] даст три контура:
 #   Контур для значений ~0.25, для ~0.5 и для ~1.
-region_thresholds = [0.25, 0.75]
+region_thresholds = [0.3, 0.5]
 
 # ============================
 # Определяем цвета с прозрачностью.
@@ -38,8 +39,8 @@ region_thresholds = [0.25, 0.75]
 # Для примера:
 #   Зеленый, оранжевый, красный и пурпурный с прозрачностью 0.5.
 region_colors = [
-    'rgba(0,128,0,0.9)',     # зеленый с прозрачностью 0.5
-    'rgba(255,165,0,0.1)',   # оранжевый с прозрачностью 0.5
+    'rgba(0,128,0,0.8)',     # зеленый с прозрачностью 0.5
+    'rgba(255,165,0,0.3)',   # оранжевый с прозрачностью 0.5
     'rgba(255,0,0,0.2)',     # красный с прозрачностью 0.5
 ]
 # Для контура нужно задать столько цветов, сколько порогов.
@@ -60,7 +61,7 @@ for i, col in enumerate(region_colors):
     colorscale.append([end, col])
 
 # Путь к базовой директории
-base_dir = r"D:\dmitrienkomy\python\diser_framework\diser_input_clear\data\res\parabola_sine_200_2000\gaus_double_1_2"
+base_dir = r"D:\dmitrienkomy\python\diser_framework\diser_input_clear\data\res_real\parabola_200_2000\async_gaus_single_1_real"
 
 fig = go.Figure()
 

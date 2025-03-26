@@ -19,13 +19,14 @@ basises = [
     "basis_30",
     "basis_36",
     "basis_40",
-    # "basis_48"
+    "basis_48"
 ]
 
 waves = [
-    # "gaus_double_1_2",
-    # "gaus_double_2_1",
-    "gaus_single_2"
+    "async_gaus_double_0.5_0.75",
+    "async_gaus_double_0.75_0.5",
+    "async_gaus_single_1_real",
+    "async_gaus_single_2",
 ]
 
 # Настраиваем парсер аргументов командной строки
@@ -37,9 +38,13 @@ bath = args.bath
 
 for wave in waves:
     for basis in basises:
+        print(f"working {os.path.join("..","data","res_real",bath,wave,basis)}")
+        if (os.path.exists(os.path.join("..","data","res_real",bath,wave,basis))):
+            print("skipped")
+            continue
         calculator = TotalAccuracy(r"E:\tsunami_res_dir\n_accurate_set", bath, basis,wave)
         accuracy_dict = calculator.get_accuracy()
         aprox_error = calculator.errors
         save_array(aprox_error, f"aprox_error_{bath}_{basis}_check.txt")
         for key, value in accuracy_dict.items():
-            save_array(value,os.path.join("..","data","res",bath,wave,basis,f"{key}.txt"))
+            save_array(value,os.path.join("..","data","res_real",bath,wave,basis,f"{key}.txt"))

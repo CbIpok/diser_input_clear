@@ -6,10 +6,6 @@ import numpy as np
 from scripts.utils import save_array
 from src.subduction_gen import SubductionGenerator
 
-
-
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Генерация данных для субдукционной зоны')
     parser.add_argument('--form', type=str, required=True,
@@ -17,8 +13,11 @@ if __name__ == '__main__':
                         help='Выбор формы: gaussian или double_gaussian')
     parser.add_argument('--output', type=str, required=True,
                         help='Путь для сохранения сгенерированного 2D массива')
-    parser.add_argument('--sigma', type=float, default=50.0,
-                        help='Параметр sigma для гауссова распределения (по умолчанию 50.0)')
+    # Задаются два параметра sigma_x и sigma_y
+    parser.add_argument('--sigma_x', type=float, default=50.0,
+                        help='Параметр sigma_x для гауссова распределения (по умолчанию 50.0)')
+    parser.add_argument('--sigma_y', type=float, default=50.0,
+                        help='Параметр sigma_y для гауссова распределения (по умолчанию 50.0)')
     # Для формы gaussian используется один параметр амплитуды:
     parser.add_argument('--amplitude', type=float, default=1.0,
                         help='Амплитуда для формы gaussian (по умолчанию 1.0)')
@@ -34,11 +33,10 @@ if __name__ == '__main__':
     data = None
 
     if args.form == 'gaussian':
-        data = generator.gaussian(amplitude=args.amplitude, sigma=args.sigma)
+        data = generator.gaussian(amplitude=args.amplitude, sigma_x=args.sigma_x, sigma_y=args.sigma_y)
     elif args.form == 'double_gaussian':
-        data = generator.double_gaussian(sigma=args.sigma,
-                                         amplitude1=args.amplitude1,
-                                         amplitude2=args.amplitude2)
+        data = generator.double_gaussian(sigma_x=args.sigma_x, sigma_y=args.sigma_y,
+                                         amplitude1=args.amplitude1, amplitude2=args.amplitude2)
 
     if data is not None:
         save_array(data, args.output)

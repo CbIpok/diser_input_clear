@@ -109,6 +109,78 @@ class TotalAccuracy:
         wave = data[self.sub_y_min:self.sub_y_max, self.sub_x_min:self.sub_x_max]
         return wave
 
+
+
+    @staticmethod
+    def get_accuracy_static(config_path, wave_path, basis_directory, coefs_path, chunk_size=37):
+        """
+        Статический метод, который принимает пути до необходимых файлов:
+          - config_path: путь к zones.json,
+          - wave_path: путь к файлу волны,
+          - basis_directory: путь к директории с базисными функциями,
+          - coefs_path: путь к JSON-файлу с коэффициентами.
+
+        Выполняет те же вычисления, что и метод get_accuracy, и возвращает словарь с:
+          - rms_accuracy: нормированное RMS отклонение,
+          - max_accuracy: нормированное максимальное отклонение,
+          - max_value_diff: нормированную разницу максимальных значений.
+        """
+        # Загружаем конфигурацию зоны
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        subduction_zone = config["subduction_zone"]
+        sub_y_min, sub_y_max, sub_x_min, sub_x_max = subduction_zone
+
+        # Загружаем волну и обрезаем до области subduction_zone
+        data = np.loadtxt(wave_path)
+        wave = data[sub_y_min:sub_y_max, sub_x_min:sub_x_max]
+
+        # Загружаем базисные функции из директории basis_directory
+        files = os.listdir(basis_directory)
+        basis_files = {}
+        regex_pattern = r".*?(\d+)\.wave"
+        for filename in files:
+            match = re.search(regex_pattern, filename)
+            if match:
+                index = int(match.group(1))
+                full_path = os.path.join(basis_directory, filename)
+                basis_files[index] = full_path
+
+        loaded_bases = []
+        for index in sorted(basis_files.keys()):
+            basis_data = np.loadtxt(basis_files[index])
+            cropped = basis_data[sub_y_min:sub_y_max, sub_x_min:sub_x_max]
+            loaded_bases.append(cropped)
+        basis_stack = np.stack(loaded_bases, axis=0)
+
+        # Загружаем коэффициенты и ошибки
+        coefs, errors = load_json_data(coefs_path)
+        rows, cols, _ = coefs.shape
+
+        rms_accuracy = np.empty((rows, cols))
+        max_accuracy = np.empty((rows, cols))
+        max_value_diff = np.empty((rows, cols))
+
+        wave_rms = np.sqrt(np.mean(wave ** 2))
+        wave_max = np.max(np.abs(wave))
+
+        # Обработка коэффициентной сетки чанками
+        for i in tqdm(range(0, rows, chunk_size), desc="Вычисление точности"):
+            end = min(i + chunk_size, rows)
+            reconstruction_chunk = np.tensordot(coefs[i:end, :, :], basis_stack, axes=([2], [0]))
+            diff_chunk = wave - reconstruction_chunk
+            rms_accuracy[i:end, :] = np.sqrt(np.mean(diff_chunk ** 2, axis=(2, 3))) / wave_rms
+            max_accuracy[i:end, :] = np.max(np.abs(diff_chunk), axis=(2, 3)) / wave_max
+            max_reconstructed_chunk = np.max(np.abs(reconstruction_chunk), axis=(2, 3))
+            max_value_diff[i:end, :] = np.abs(max_reconstructed_chunk - wave_max) / wave_max
+
+        return {
+            "rms_accuracy": rms_accuracy,
+            "max_accuracy": max_accuracy,
+            "max_value_diff": max_value_diff
+        }
+
+
     def get_accuracy(self, chunk_size=37):
         """
         Вычисляет нормированные показатели аппроксимации для каждой точки

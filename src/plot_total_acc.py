@@ -118,11 +118,13 @@ if __name__ == "__main__":
         "y_200_2000",
     ]
     waves = [
+        "async_gaus_double_0.5_0.75",
+        "async_gaus_single_1_real",
         "gaus_double_1_2",
         "gaus_double_2_1",
-        "gaus_single_2"
+        "async_gaus_single_2"
     ]
-    basis = "basis_48"
+    basis = "basis_12"
     bath = "parabola_sine_200_2000"
     calculator = PlotTotalAccuracy(r"E:\tsunami_res_dir\n_accurate_set", bath, basis,waves[0])
     calculator.plot3d(150,200)
