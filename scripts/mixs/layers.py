@@ -61,7 +61,7 @@ for i, col in enumerate(region_colors):
     colorscale.append([end, col])
 
 # Путь к базовой директории
-base_dir = r"D:\dmitrienkomy\python\diser_framework\diser_input_clear\data\res_real\parabola_200_2000\async_gaus_single_1_real"
+base_dir = r"/data/res_real/parabola_200_2000/async_gaus_single_1_real"
 
 fig = go.Figure()
 

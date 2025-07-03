@@ -33,4 +33,4 @@ accuracy_dict = calculator.get_accuracy()
 aprox_error = calculator.errors
 # save_array(aprox_error, f"aprox_error_{bath}_{basis}_check.txt")
 for key, value in accuracy_dict.items():
-    save_array(value,os.path.join("..","data","res_mean", "parabola_sine_200_2000",waves[0],"mean",f"{key}.txt"))
+    save_array(value, os.path.join("../..", "data", "res_mean", "parabola_sine_200_2000", waves[0], "mean", f"{key}.txt"))

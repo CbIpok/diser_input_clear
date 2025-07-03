@@ -24,11 +24,11 @@ basises = [
 ]
 
 # Путь к базовой директории
-base_dir = r"D:\dmitrienkomy\python\diser_framework\diser_input_clear\data\res_real\x_200_2000\async_gaus_single_2"
+base_dir = r"/data/final/x_200_2000"
 
 # Пороговые значения для классификации:
 # Значения < 0.3 → регион 0, 0.3 ≤ val < 0.5 → регион 1, ≥ 0.5 → регион 2.
-region_thresholds = [0.3, 0.5]
+region_thresholds = [0.2, 0.4]
 
 # Определяем дискретную цветовую карту:
 # регион 0 – зеленый, регион 1 – желтый, регион 2 – красный.
@@ -74,7 +74,7 @@ for i, folder in enumerate(basises):
 # Создаем отдельную ось для колорбара справа от подграфиков
 cbar_ax = fig.add_axes([0.85, 0.15, 0.03, 0.7])
 cbar = fig.colorbar(im, cax=cbar_ax, ticks=[0, 1, 2])
-cbar.ax.set_yticklabels(["<0.3", "0.3–0.5", ">0.5"])
+cbar.ax.set_yticklabels(["<20%", "20–40%", ">40%"])
 cbar.set_label("RMS Accuracy Regions")
 
 plt.show()
