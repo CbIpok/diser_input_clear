@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from scripts.utils import save_array
-from src.subduction_gen import SubductionGenerator
+from src.subduction_generator import SubductionGenerator
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Генерация данных для субдукционной зоны')

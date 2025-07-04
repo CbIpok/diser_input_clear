@@ -15,7 +15,7 @@ class BasisGenerator:
             "size": [height, width]
             "subduction_zone": [y_min, y_max, x_min, x_max]
         """
-        config_path = os.path.join("..","config", "zones.json")
+        config_path = os.path.join("config", "zones.json")
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
         self.size = config["size"]
